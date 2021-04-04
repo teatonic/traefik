@@ -1,7 +1,7 @@
 version: '2.4'
 networks:
   default:
-    name: udatapp_default
+    name: teatonic
 
 volumes:
   data:
@@ -41,7 +41,6 @@ services:
     - /etc/ssl/certs:/etc/ssl/certs
     - logs:/logs
     labels:
-    - "udatapp.managed=true"
     - "traefik.enable=true"
     - "traefik.http.routers.traefik_api.entrypoints=web_admin"
     # With traefik dashboard enabled, the router rule must catch requests for both /api and /dashboard
@@ -141,7 +140,6 @@ services:
     - "--entrypoints.web_admin_secure.address=:9443"
     - "--providers.docker=true"
     - "--providers.docker.endpoint=unix:///var/run/docker.sock"
-    - "--providers.docker.constraints=Label(`udatapp.managed`,`true`)"
     - "--providers.docker.exposedByDefault=false"
     - "--providers.file.directory=/traefikconfig"
 
