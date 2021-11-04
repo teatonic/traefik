@@ -1,200 +1,34 @@
-version: '2.4'
-networks:
-  default:
-    name: teatonic
-
-volumes:
-  data:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${DATA_PATH}
-  traefikconfig:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${DATA_PATH}/traefikconfig
-  logs:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${LOG_PATH}
+version: '3'
 
 services:
-  # Router
-  # traefik launch order do not matter. It can be launched before or after all other services
-  # ENTRYPOINT web_admin
-  #     http://traefik.domain:${NETWORK_PORT_ADMIN}          => go to dashboard
-  #     http://traefik.domain:${NETWORK_PORT_ADMIN}/api
-  #     http://traefik.domain:${NETWORK_PORT_ADMIN}/dashboard
-  traefik:
-    image: traefik:${TRAEFIK_VERSION:-latest}
-    restart: unless-stopped
-    volumes:
-    - /var/run/docker.sock:/var/run/docker.sock:ro
-    #- ./traefik-conf.yml:/etc/traefik/traefik.yml
-    - traefikconfig:/traefikconfig
-    - /etc/localtime:/etc/localtime:ro
-    - /etc/ssl/certs:/etc/ssl/certs
-    - logs:/logs
-    labels:
-    - "traefik.enable=true"
-    - "traefik.http.routers.traefik_api.entrypoints=web_admin"
-    # With traefik dashboard enabled, the router rule must catch requests for both /api and /dashboard
-    - "traefik.http.routers.traefik_api.rule=HostRegexp(`{domain:${TANGO_DOMAIN:-.*}}`)
-      && (PathPrefix(`/dashboard`) || PathPrefix(`/api`) || PathPrefix(`/`))"
-    - "traefik.http.routers.traefik_api.service=api@internal"
-    - "traefik.http.routers.traefik_api.priority=50"
-    - "traefik.http.routers.traefik_api.middlewares=traefik_api-redirect,traefik_api-redirect2"
-    - "traefik.http.routers.traefik_api-secure.entrypoints=web_admin_secure"
-    - "traefik.http.routers.traefik_api-secure.rule=HostRegexp(`{domain:${TANGO_DOMAIN:-.*}}`)
-      && (PathPrefix(`/dashboard`) || PathPrefix(`/api`) || PathPrefix(`/`))"
-    - "traefik.http.routers.traefik_api-secure.service=api@internal"
-    - "traefik.http.routers.traefik_api-secure.middlewares=traefik_api-redirect,traefik_api-redirect2"
-    - "traefik.http.routers.traefik_api-secure.tls=true"
-    - "traefik.http.routers.traefik_api-secure.tls.domains[0].main=traefik.${TANGO_DOMAIN:-.*}"
-    # redirect /dashboard to /dashboard/
-    - "traefik.http.middlewares.traefik_api-redirect.redirectregex.regex=^(http[s]?://[^:/]+(:[0-9]+)?)/dashboard$$"
-    - "traefik.http.middlewares.traefik_api-redirect.redirectregex.replacement=$${1}/dashboard/"
-    # redirect / to /dashboard/
-    - "traefik.http.middlewares.traefik_api-redirect2.redirectregex.regex=^(http[s]?://[^:/]+(:[0-9]+)?)(/)+$$"
-    - "traefik.http.middlewares.traefik_api-redirect2.redirectregex.replacement=$${1}/dashboard/"
-    # HTTP to HTTPS redirect routers - catch all HTTP request on each entrypoint
-    # NOTE : we cannot use the method of set redirect middleware on each routers service because each service routers
-    #        may have two entrypoints and middlewares dont know from which entrypoint the request come.
-    #        So we use a global catch all rule, using priority for exclude some services
-    - "traefik.http.routers.http-catchall-web_admin.entrypoints=web_admin"
-    - "traefik.http.routers.http-catchall-web_admin.rule=HostRegexp(`{host:.+}`)"
-    - "traefik.http.routers.http-catchall-web_admin.priority=100"
-    - "traefik.http.routers.http-catchall-web_admin.middlewares=redirect-secure-web_admin@docker"
-    - "traefik.http.routers.http-catchall-web_secondary.entrypoints=web_secondary"
-    - "traefik.http.routers.http-catchall-web_secondary.rule=HostRegexp(`{host:.+}`)"
-    - "traefik.http.routers.http-catchall-web_secondary.priority=100"
-    - "traefik.http.routers.http-catchall-web_secondary.middlewares=redirect-secure-web_secondary@docker"
-    - "traefik.http.routers.http-catchall-web_main.entrypoints=web_main"
-    - "traefik.http.routers.http-catchall-web_main.rule=HostRegexp(`{host:.+}`)"
-    - "traefik.http.routers.http-catchall-web_main.priority=100"
-    - "traefik.http.routers.http-catchall-web_main.middlewares=redirect-secure-web_main@docker"
-    # HTTP to HTTPS redirect middleware
-    - "traefik.http.middlewares.redirect-secure-web_main.redirectscheme.scheme=https"
-    - "traefik.http.middlewares.redirect-secure-web_main.redirectscheme.permanent=true"
-    - "traefik.http.middlewares.redirect-secure-web_main.redirectscheme.port=${NETWORK_PORT_MAIN_SECURE}"
-    - "traefik.http.middlewares.redirect-secure-web_secondary.redirectscheme.scheme=https"
-    - "traefik.http.middlewares.redirect-secure-web_secondary.redirectscheme.permanent=true"
-    - "traefik.http.middlewares.redirect-secure-web_secondary.redirectscheme.port=${NETWORK_PORT_SECONDARY_SECURE}"
-    - "traefik.http.middlewares.redirect-secure-web_admin.redirectscheme.scheme=https"
-    - "traefik.http.middlewares.redirect-secure-web_admin.redirectscheme.permanent=true"
-    - "traefik.http.middlewares.redirect-secure-web_admin.redirectscheme.port=${NETWORK_PORT_ADMIN_SECURE}"
-    # Elastic module for access log ingestion 
-    - "co.elastic.logs/module=traefik"
-    networks:
-    - default
-    expose:
-    # web_admin entrypoints
-    - 9000
-    - 9443
-    # web_secondary entrypoints
-    - 8000
-    - 8443
-    # web_main entrypoints
-    - 80
-    - 443
-    # traefik internal
-    - 8080
+  reverse-proxy:
+    # The official v2 Traefik docker image
+    image: traefik:v2.5
+    # Enables the web UI and tells Traefik to listen to docker
+    command: 
+      --api.insecure=true 
+      --providers.docker
+
+ 
     ports:
-    - ${NETWORK_PORT_MAIN}:80
-    - ${NETWORK_PORT_MAIN_SECURE}:443
-    - ${NETWORK_PORT_SECONDARY}:8000
-    - ${NETWORK_PORT_SECONDARY_SECURE}:8443
-    - ${NETWORK_PORT_ADMIN}:9000
-    - ${NETWORK_PORT_ADMIN_SECURE}:9443
-    - ${NETWORK_PORT_TRAEFIK_INTERNAL}:8080
-    command:
-    # https://docs.traefik.io/reference/static-configuration/cli/
-    # Logs
-    - "--log=true"
-    - "--log.level=DEBUG"
-    - "--log.filePath=/logs/traefik.log"
-    - "--accesslog=true"
-    - "--accesslog.filepath=/logs/traefik_access.log"
-    - "--accesslog.bufferingsize=100"
-    - "--api=true"
-    - "--api.dashboard=true"
-    - "--api.debug=false"
-    - "--api.insecure=false"
-    - "--global.sendAnonymousUsage=false"
-    - "--entrypoints.web_main=true"
-    - "--entrypoints.web_main.address=:80"
-    - "--entrypoints.web_main_secure=true"
-    - "--entrypoints.web_main_secure.address=:443"
-    - "--entrypoints.web_secondary=true"
-    - "--entrypoints.web_secondary.address=:8000"
-    - "--entrypoints.web_secondary_secure=true"
-    - "--entrypoints.web_secondary_secure.address=:8443"
-    - "--entrypoints.web_admin=true"
-    - "--entrypoints.web_admin.address=:9000"
-    - "--entrypoints.web_admin_secure=true"
-    - "--entrypoints.web_admin_secure.address=:9443"
-    - "--providers.docker=true"
-    - "--providers.docker.endpoint=unix:///var/run/docker.sock"
-    - "--providers.docker.exposedByDefault=false"
-    - "--providers.file.directory=/traefikconfig"
-
-   # simple test service  
-  whoami:
-    image: containous/whoami:${WHOAMI_VERSION:-latest}
-    restart: unless-stopped
-    labels:
-    - "traefik.enable=true"
-    - "traefik.http.routers.whoami.entrypoints=web_main"
-    - "traefik.http.routers.whoami.rule=HostRegexp(`{domain:${TANGO_DOMAIN:-.*}}`) && PathPrefix(`/whoami`)"
-    - "traefik.http.routers.whoami.priority=50"
-    - "traefik.http.routers.whoami.service=whoami"
-    - "traefik.http.routers.whoami-secure.entrypoints=web_main_secure"
-    - "traefik.http.routers.whoami-secure.rule=HostRegexp(`{domain:${TANGO_DOMAIN:-.*}}`) && PathPrefix(`/whoami`)"
-    - "traefik.http.routers.whoami-secure.service=whoami"
-    - "traefik.http.routers.whoami-secure.tls=true"
-    - "traefik.http.services.whoami.loadbalancer.server.port=80"
-    - "traefik.http.services.whoami.loadbalancer.server.scheme=http"
-    - "traefik.http.services.whoami.loadbalancer.passhostheader=true"
-    networks:
-    - default
-    expose:
-    - 80
+      # The HTTP port
+      - "80:80"
+      # The Web UI (enabled by --api.insecure=true)
+      - "8080:8080"
     volumes:
-    - /etc/localtime:/etc/localtime:ro
-  # c9:
-  #   image: ghcr.io/linuxserver/cloud9
-  #   container_name: c9
-  #   environment:
-  #     - PUID=1000
-  #     - PGID=1000
-  #     - TZ=Europe/Paris
-  #     - USERNAME=
-  #     - PASSWORD=
-  #   volumes:
-  #     - ./config:/config/custom-cont-init.d
-  #   restart: unless-stopped
-  #   networks:
-  #     - default
-  #   expose:
-  #     - 80
+      # So that Traefik can listen to the Docker events
+      - /var/run/docker.sock:/var/run/docker.sock
+  whoami:
+    # A container that exposes an API to show its IP address
+    image: traefik/whoami
+    labels:
+      - "traefik.http.routers.whoami.rule=Host(`whoami.docker.localhost`)"
+  # whoami:
+  #     # A container that exposes an API to show its IP address
+  #   image: containous/whoami
   #   labels:
-  #   - "traefik.enable=true"
-  #   - "traefik.http.routers.c9.entrypoints=web_main"
-  #   - "traefik.http.routers.c9.rule=HostRegexp(`{domain:${TANGO_DOMAIN:-.*}}`) && PathPrefix(`/c9`)"
-  #   - "traefik.http.routers.c9.priority=50"
-  #   - "traefik.http.routers.c9.service=c9"
-  #   - "traefik.http.routers.c9-secure.entrypoints=web_main_secure"
-  #   - "traefik.http.routers.c9-secure.rule=HostRegexp(`{domain:${TANGO_DOMAIN:-.*}}`) && PathPrefix(`/c9`)"
-  #   - "traefik.http.routers.c9-secure.service=c9"
-  #   - "traefik.http.routers.c9-secure.tls=true"
-  #   - "traefik.http.services.c9.loadbalancer.server.port=80"
-  #   - "traefik.http.services.c9.loadbalancer.server.scheme=http"
-  #   - "traefik.http.services.c9.loadbalancer.passhostheader=true"
-
-
+  #     - traefik.http.routers.whoami.rule=Host('samio.live') #sets the rule for the router
+  #     - traefik.http.routers.whoami.tls=true #sets the service to use TLS
+  #     - traefik.http.routers.whoami.tls.certresolver=letsEncrypt #references our certificatesResolvers in traefik.yml
+  #     - traefik.http.routers.whoami.tls.domains[0].main=samio.live #optionally restrict domain
 

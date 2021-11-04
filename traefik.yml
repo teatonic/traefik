@@ -1,0 +1,15 @@
+entryPoints:
+  web:
+    address: ":80"
+
+  websecure:
+    address: ":443"
+
+certificatesResolvers:
+  letsEncrypt:
+    acme:
+      email: teatonic@gmail.vom
+      storage: /etc/traefik/acme/acme.json
+      httpChallenge:
+        # used during the challenge
+        entryPoint: web
