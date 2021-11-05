@@ -1,34 +1,61 @@
-version: '3'
+version: '3.3'
 
 services:
-  reverse-proxy:
-    # The official v2 Traefik docker image
-    image: traefik:v2.5
-    # Enables the web UI and tells Traefik to listen to docker
-    command: 
-      --api.insecure=true 
-      --providers.docker
 
- 
+  traefik:
+    image: "traefik:v2.5"
+    container_name: "rp_traefik"
+    command:
+     #- "--log.level=DEBUG"
+      # Traefik will listen on port 8080 by default for API request.
+      - "--api.insecure=true"
+      # Enabling docker provider
+      - "--providers.docker=true"
+      # Do not expose containers unless explicitly told so
+      - "--providers.docker.exposedbydefault=false"
+      # Traefik will listen to incoming request on the port 80 (HTTP)
+      - "--entrypoints.web.address=:80"
     ports:
-      # The HTTP port
       - "80:80"
-      # The Web UI (enabled by --api.insecure=true)
       - "8080:8080"
     volumes:
-      # So that Traefik can listen to the Docker events
-      - /var/run/docker.sock:/var/run/docker.sock
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    restart: unless-stopped
+  
   whoami:
     # A container that exposes an API to show its IP address
     image: traefik/whoami
+    container_name: rp_whoami
     labels:
-      - "traefik.http.routers.whoami.rule=Host(`whoami.docker.localhost`)"
-  # whoami:
-  #     # A container that exposes an API to show its IP address
-  #   image: containous/whoami
-  #   labels:
-  #     - traefik.http.routers.whoami.rule=Host('samio.live') #sets the rule for the router
-  #     - traefik.http.routers.whoami.tls=true #sets the service to use TLS
-  #     - traefik.http.routers.whoami.tls.certresolver=letsEncrypt #references our certificatesResolvers in traefik.yml
-  #     - traefik.http.routers.whoami.tls.domains[0].main=samio.live #optionally restrict domain
+      # Explicitly tell Traefik to expose this container
+      - "traefik.enable=true"
+      # The domain the service will respond to
+      - "traefik.http.routers.whoami.rule=Host(`whoami.samio.live`)"
+      # Allow request only from the predefined entry point named "web"
+      - "traefik.http.routers.whoami.entrypoints=web"
+    restart: unless-stopped
 
+  vscode:
+    image: lscr.io/linuxserver/code-server
+    container_name: rp_vscode
+    labels:
+      # Explicitly tell Traefik to expose this container
+      - "traefik.enable=true"
+      # The domain the service will respond to
+      - "traefik.http.routers.vscode.rule=Host(`vscode.samio.live`)"
+      # Allow request only from the predefined entry point named "web"
+      - "traefik.http.routers.vscode.entrypoints=web"
+    volumes:
+      # - .vscode/code-server:/root/.config/code-server
+      # - .vscode/extensions:/root/.local/share/code-server/extensions
+      - /home/teatonic/repos:/workspace
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Paris
+      - PASSWORD=${VSCODE_PASS} #optional
+      # - FILE__PASSWORD=/home/teatonic/mysecretpassword
+    user: 0:0 
+    restart: unless-stopped
+
+    
