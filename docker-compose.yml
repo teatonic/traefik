@@ -15,12 +15,28 @@ services:
       - "--providers.docker.exposedbydefault=false"
       # Traefik will listen to incoming request on the port 80 (HTTP)
       - "--entrypoints.web.address=:80"
+      # Logs
+      - "--log.filePath=/logs/traefik.log"
+      - "--log.level=DEBUG"
+      - "--accesslog=true"
+      - "--accesslog.filepath=/logs/access.log"
+      # # TLS- BEGIN >>>>>>
+      - "--entrypoints.websecure.address=:443"
+      # - "--certificatesresolvers.myresolver.acme.email=teatonic@gmail.com"
+      # - "--certificatesresolvers.myresolver.acme.storage=acme.json"
+      # # used during the challenge
+      # - "--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web"
+      # # TLS <<<<<<<<< END
     ports:
       - "80:80"
+      - "443:443"
       - "8080:8080"
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "/data/traefik/logs:/logs"
+      #- "/data/traefik/tls:/tls"
     restart: unless-stopped
+
   
   whoami:
     # A container that exposes an API to show its IP address
@@ -33,6 +49,13 @@ services:
       - "traefik.http.routers.whoami.rule=Host(`whoami.samio.live`)"
       # Allow request only from the predefined entry point named "web"
       - "traefik.http.routers.whoami.entrypoints=web"
+      # TLS
+      - "traefik.http.routers.whoami-secure.tls=true"
+      - "traefik.http.routers.whoami-secure.rule=Host(`whoami.samio.live`)"
+      - "traefik.http.routers.whoami-secure.entrypoints=websecure"
+
+
+      # - "traefik.http.routers.whoami-secure.tls.certresolver=myresolver"
     restart: unless-stopped
 
   vscode:
@@ -45,6 +68,10 @@ services:
       - "traefik.http.routers.vscode.rule=Host(`vscode.samio.live`)"
       # Allow request only from the predefined entry point named "web"
       - "traefik.http.routers.vscode.entrypoints=web"
+      # TLS
+      - "traefik.http.routers.vscode-secure.tls=true"
+      - "traefik.http.routers.vscode-secure.rule=Host(`vscode.samio.live`)"
+      - "traefik.http.routers.vscode-secure.entrypoints=websecure"
     volumes:
       # - .vscode/code-server:/root/.config/code-server
       # - .vscode/extensions:/root/.local/share/code-server/extensions
