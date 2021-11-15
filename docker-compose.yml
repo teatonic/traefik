@@ -14,7 +14,7 @@ services:
       # Do not expose containers unless explicitly told so
       - "--providers.docker.exposedbydefault=false"
       # Traefik will listen to incoming request on the port 80 (HTTP)
-      - "--entrypoints.web.address=:80"
+      #- "--entrypoints.web.address=:80" --- removing http
       # Logs
       - "--log.filePath=/logs/traefik.log"
       - "--log.level=DEBUG"
@@ -28,7 +28,7 @@ services:
       # - "--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web"
       # # TLS <<<<<<<<< END
     ports:
-      - "80:80"
+      #- "80:80"--- removing http
       - "443:443"
       - "8080:8080"
     volumes:
@@ -46,9 +46,9 @@ services:
       # Explicitly tell Traefik to expose this container
       - "traefik.enable=true"
       # The domain the service will respond to
-      - "traefik.http.routers.whoami.rule=Host(`whoami.samio.live`)"
+      #- "traefik.http.routers.whoami.rule=Host(`whoami.samio.live`)"     --- removing http
       # Allow request only from the predefined entry point named "web"
-      - "traefik.http.routers.whoami.entrypoints=web"
+      #- "traefik.http.routers.whoami.entrypoints=web"                    --- removing http
       # TLS
       - "traefik.http.routers.whoami-secure.tls=true"
       - "traefik.http.routers.whoami-secure.rule=Host(`whoami.samio.live`)"
@@ -65,9 +65,9 @@ services:
       # Explicitly tell Traefik to expose this container
       - "traefik.enable=true"
       # The domain the service will respond to
-      - "traefik.http.routers.vscode.rule=Host(`vscode.samio.live`)"
+      #- "traefik.http.routers.vscode.rule=Host(`vscode.samio.live`)"         --- removing http
       # Allow request only from the predefined entry point named "web"
-      - "traefik.http.routers.vscode.entrypoints=web"
+      #- "traefik.http.routers.vscode.entrypoints=web"                        --- removing http
       # TLS
       - "traefik.http.routers.vscode-secure.tls=true"
       - "traefik.http.routers.vscode-secure.rule=Host(`vscode.samio.live`)"
