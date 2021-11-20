@@ -1,0 +1,8 @@
+docker run -d \
+  --name=plex_test \
+  --net=host \
+  -e PUID=1000 \
+  -e PGID=1000 \
+  -e VERSION=docker \
+  -p 32404:32400 \
+  lscr.io/linuxserver/plex

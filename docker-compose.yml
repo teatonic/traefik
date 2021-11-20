@@ -99,12 +99,13 @@ services:
       - VERSION=docker
       # - PLEX_CLAIM= #optional
     labels:
-      # Explicitly tell Traefik to expose this container
-      - "traefik.enable=true"
-      # The domain the service will respond to
-      - "traefik.http.routers.plex.rule=Host(`plex.samio.live`)"
-      # Allow request only from the predefined entry point named "web"
-      - "traefik.http.routers.plex.entrypoints=web"
+      - "traefik.http.routers.plex-secure.tls=true"
+      - "traefik.http.routers.plex-secure.rule=Host(`plex.samio.live`)"
+      - "traefik.http.routers.plex-secure.entrypoints=websecure"
+      - "traefik.http.routers.plex-secure.tls.certresolver=le"
+      - "traefik.http.middlewares.plex_prefix.addprefix.prefix=/web"
+      # Apply the middleware named `foo-add-prefix` to the router named `router1`
+      - "traefik.http.routers.plex-secure.middlewares=plex_prefix@docker"
     restart: unless-stopped
 
 
